@@ -41,7 +41,7 @@ public class MovieServiceImpl implements MovieService {
             String producer = entry.getKey();
             List<Integer> years = entry.getValue();
 
-            // winner < 2 continue
+            // winner < 2 continue - He didn't win more than 1 to compare.
             if (years.size() < 2) {
                 continue;
             }
