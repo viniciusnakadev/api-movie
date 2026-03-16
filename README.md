@@ -1,4 +1,4 @@
-# Test Outsera - Movies API
+# Movies API
 
     API REST desenvolvida para análise de intervalos entre prêmios do **Golden Raspberry Awards**.
 
