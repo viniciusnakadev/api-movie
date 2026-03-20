@@ -24,67 +24,53 @@ public class MovieServiceImpl implements MovieService {
     public AwardIntervalResponse getProducerAwardIntervals() {
         List<Movie> winningMovies = movieRepository.findByWinnerGoldenRaspberryAwardsTrueOrderByYearAsc();
 
-        Map<String, List<Integer>> producerWins = new HashMap<>();
+        Map<String, Integer> lastWinByProducer = new HashMap<>();
+
+        int minInterval = Integer.MAX_VALUE;
+        int maxInterval = Integer.MIN_VALUE;
+
+        List<AwardIntervalItemResponse> minList = new ArrayList<>();
+        List<AwardIntervalItemResponse> maxList = new ArrayList<>();
 
         for (Movie movie : winningMovies) {
-            List<String> producers = extractProducers(movie.getProducers());
+            int currentYear = movie.getYear();
 
-            for (String producer : producers) {
-                producerWins.computeIfAbsent(producer, key -> new ArrayList<>())
-                        .add(movie.getYear());
-            }
-        }
+            for (String producer : extractProducers(movie.getProducers())) {
+                Integer previousYear = lastWinByProducer.put(producer, currentYear);
 
-        List<AwardIntervalItemResponse> intervals = new ArrayList<>();
+                if (previousYear == null) {
+                    continue;
+                }
 
-        for (Map.Entry<String, List<Integer>> entry : producerWins.entrySet()) {
-            String producer = entry.getKey();
-            List<Integer> years = entry.getValue();
+                int interval = currentYear - previousYear;
 
-            // winner < 2 continue - He didn't win more than 1 to compare.
-            if (years.size() < 2) {
-                continue;
-            }
-
-            years.sort(Integer::compareTo);
-
-            for (int i = 1; i < years.size(); i++) {
-                int previous = years.get(i - 1);
-                int following = years.get(i);
-                int interval = following - previous;
-
-                intervals.add(new AwardIntervalItemResponse(
+                AwardIntervalItemResponse current = new AwardIntervalItemResponse(
                         producer,
                         interval,
-                        previous,
-                        following
-                ));
+                        previousYear,
+                        currentYear
+                );
+
+                if (interval < minInterval) {
+                    minInterval = interval;
+                    minList.clear();
+                    minList.add(current);
+                } else if (interval == minInterval) {
+                    minList.add(current);
+                }
+
+                if (interval > maxInterval) {
+                    maxInterval = interval;
+                    maxList.clear();
+                    maxList.add(current);
+                } else if (interval == maxInterval) {
+                    maxList.add(current);
+                }
             }
         }
 
-        if (intervals.isEmpty()) {
-            return new AwardIntervalResponse(List.of(), List.of());
-        }
-
-        int minInterval = intervals.stream()
-                .map(AwardIntervalItemResponse::interval)
-                .min(Integer::compareTo)
-                .orElse(0);
-
-        int maxInterval = intervals.stream()
-                .map(AwardIntervalItemResponse::interval)
-                .max(Integer::compareTo)
-                .orElse(0);
-
-        List<AwardIntervalItemResponse> minList = intervals.stream()
-                .filter(item -> item.interval() == minInterval)
-                .sorted(Comparator.comparing(AwardIntervalItemResponse::producer))
-                .toList();
-
-        List<AwardIntervalItemResponse> maxList = intervals.stream()
-                .filter(item -> item.interval() == maxInterval)
-                .sorted(Comparator.comparing(AwardIntervalItemResponse::producer))
-                .toList();
+        minList.sort(Comparator.comparing(AwardIntervalItemResponse::producer));
+        maxList.sort(Comparator.comparing(AwardIntervalItemResponse::producer));
 
         return new AwardIntervalResponse(minList, maxList);
     }
